@@ -66,12 +66,13 @@ func TestInvalidCases(t *testing.T) {
 			parserErr, ok := e.(json.ParserError)
 			if !ok {
 				t.Errorf("%q: want all individual errors to implement ParserError, got: %T", test.input, e)
-			}
-			if !reflect.DeepEqual(test.expected, parserErr.Expected()) {
-				t.Errorf("%q: want: %v, got: %v", test.input, test.expected, parserErr.Expected())
-			}
-			if !strings.Contains(parserErr.Error(), test.err) {
-				t.Errorf("%q: want prefix \n%s\n, got \n%s\n", test.input, test.err, parserErr.Error())
+			} else {
+				if !reflect.DeepEqual(test.expected, parserErr.Expected()) {
+					t.Errorf("%q: want: %v, got: %v", test.input, test.expected, parserErr.Expected())
+				}
+				if !strings.Contains(parserErr.Error(), test.err) {
+					t.Errorf("%q: want prefix \n%s\n, got \n%s\n", test.input, test.err, parserErr.Error())
+				}
 			}
 		}
 	}

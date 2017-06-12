@@ -1,5 +1,7 @@
 package json
 
+import "sort"
+
 // ErrorLister is the public interface to access the inner errors
 // included in a errList
 type ErrorLister interface {
@@ -16,6 +18,7 @@ type ParserError interface {
 	InnerError() error
 	Pos() (int, int, int)
 	Expected() []string
+	ExpectedRules() []*rule
 }
 
 func (p *parserError) InnerError() error {
@@ -27,5 +30,24 @@ func (p *parserError) Pos() (line, col, offset int) {
 }
 
 func (p *parserError) Expected() []string {
-	return p.expected
+	expected := make([]string, 0, len(p.expected))
+	var eof *rule
+	var ok bool
+	if eof, ok = p.expected["!."]; ok {
+		delete(p.expected, "!.")
+	}
+	for k := range p.expected {
+		expected = append(expected, k)
+	}
+	sort.Strings(expected)
+	if eof != nil {
+		expected = append(expected, "EOF")
+	}
+	return expected
+}
+
+func (p *parserError) ExpectedRules() []*rule {
+	expected := make([]*rule, 0, len(p.expected))
+	// TODO: not finished
+	return expected
 }

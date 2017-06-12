@@ -240,7 +240,7 @@ type parserError struct {
 	Inner    error
 	pos      position
 	prefix   string
-	expected []string
+	expected map[string]*rule
 }
 
 // Error returns the error message.
@@ -257,7 +257,7 @@ func newParser(filename string, b []byte, opts ...Option) *parser {
 		pt:              savepoint{position: position{line: 1}},
 		recover:         true,
 		maxFailPos:      position{col: 1, line: 1},
-		maxFailExpected: make(map[string]struct{}),
+		maxFailExpected: make(map[string]*rule),
 	}
 	p.setOptions(opts)
 	return p
@@ -305,7 +305,7 @@ type parser struct {
 
 	// parse fail
 	maxFailPos            position
-	maxFailExpected       map[string]struct{}
+	maxFailExpected       map[string]*rule
 	maxFailInvertExpected bool
 }
 
@@ -362,10 +362,10 @@ func (p *parser) out(s string) string {
 }
 
 func (p *parser) addErr(err error) {
-	p.addErrAt(err, p.pt.position, []string{})
+	p.addErrAt(err, p.pt.position, nil)
 }
 
-func (p *parser) addErrAt(err error, pos position, expected []string) {
+func (p *parser) addErrAt(err error, pos position, expected map[string]*rule) {
 	var buf bytes.Buffer
 	if p.filename != "" {
 		buf.WriteString(p.filename)
@@ -398,13 +398,17 @@ func (p *parser) failAt(fail bool, pos position, want string) {
 
 		if pos.offset > p.maxFailPos.offset {
 			p.maxFailPos = pos
-			p.maxFailExpected = make(map[string]struct{})
+			p.maxFailExpected = make(map[string]*rule)
 		}
 
 		if p.maxFailInvertExpected {
 			want = "!" + want
 		}
-		p.maxFailExpected[want] = struct{}{}
+		var r *rule
+		if len(p.rstack) > 0 {
+			r = p.rstack[len(p.rstack)-1]
+		}
+		p.maxFailExpected[want] = r
 	}
 }
 
@@ -511,19 +515,18 @@ func (p *parser) parse(g *grammar) (val interface{}, err error) {
 			// If parsing fails, but no errors have been recorded, the expected values
 			// for the farthest parser position are returned as error.
 			expected := make([]string, 0, len(p.maxFailExpected))
-			eof := false
-			if _, ok := p.maxFailExpected["!."]; ok {
+			var eof *rule
+			if eof, ok = p.maxFailExpected["!."]; ok {
 				delete(p.maxFailExpected, "!.")
-				eof = true
 			}
 			for k := range p.maxFailExpected {
 				expected = append(expected, k)
 			}
 			sort.Strings(expected)
-			if eof {
+			if eof != nil {
 				expected = append(expected, "EOF")
 			}
-			p.addErrAt(errors.New("no match found, expected: "+listJoin(expected, ", ", "or")), p.maxFailPos, expected)
+			p.addErrAt(errors.New("no match found, expected: "+listJoin(expected, ", ", "or")), p.maxFailPos, p.maxFailExpected)
 		}
 		return nil, p.errs.err()
 	}
@@ -637,7 +640,7 @@ func (p *parser) parseActionExpr(act *actionExpr) (interface{}, bool) {
 		p.cur.text = p.sliceFrom(start)
 		actVal, err := act.run(p)
 		if err != nil {
-			p.addErrAt(err, start.position, []string{})
+			p.addErrAt(err, start.position, nil)
 		}
 		val = actVal
 	}
