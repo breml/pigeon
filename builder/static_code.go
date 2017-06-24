@@ -114,12 +114,11 @@ func (p position) String() string {
 type savepoint struct {
 	position
 	rn rune
-	w  int
 }
 
 type current struct {
 	pos  position // start position of the match
-	text []byte   // raw text of the match
+	text []rune   // raw text of the match
 }
 
 // the AST types...
@@ -267,8 +266,8 @@ func newParser(filename string, b []byte, opts ...Option) *parser {
 	p := &parser{
 		filename:        filename,
 		errs:            new(errList),
-		data:            b,
-		pt:              savepoint{position: position{line: 1}},
+		data:            []rune(string(b)),
+		pt:              savepoint{position: position{offset: -1, line: 1}},
 		recover:         true,
 		maxFailPos:      position{col: 1, line: 1},
 		maxFailExpected: make(map[string]struct{}),
@@ -295,7 +294,7 @@ type parser struct {
 	pt       savepoint
 	cur      current
 
-	data []byte
+	data []rune
 	errs *errList
 
 	depth   int
@@ -424,10 +423,13 @@ func (p *parser) failAt(fail bool, pos position, want string) {
 
 // read advances the parser to the next rune.
 func (p *parser) read() {
-	p.pt.offset += p.pt.w
-	rn, n := utf8.DecodeRune(p.data[p.pt.offset:])
+	p.pt.offset++
+	if p.pt.offset >= len(p.data) {
+		p.pt.rn = utf8.RuneError
+		return
+	}
+	rn := p.data[p.pt.offset]
 	p.pt.rn = rn
-	p.pt.w = n
 	p.pt.col++
 	if rn == '\n' {
 		p.pt.line++
@@ -435,9 +437,7 @@ func (p *parser) read() {
 	}
 
 	if rn == utf8.RuneError {
-		if n == 1 {
-			p.addErr(errInvalidEncoding)
-		}
+		p.addErr(errInvalidEncoding)
 	}
 }
 
@@ -453,7 +453,7 @@ func (p *parser) restore(pt savepoint) {
 }
 
 // get the slice of bytes from the savepoint start to the current position.
-func (p *parser) sliceFrom(start savepoint) []byte {
+func (p *parser) sliceFrom(start savepoint) []rune {
 	return p.data[start.position.offset:p.pt.position.offset]
 }
 

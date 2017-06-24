@@ -34,7 +34,7 @@ func toString(v interface{}) string {
 	ifSl := v.([]interface{})
 	var res string
 	for _, s := range ifSl {
-		res += string(s.([]byte))
+		res += string(s.([]rune))
 	}
 	return res
 }
@@ -45,22 +45,22 @@ var g = &grammar{
 			name: "Input",
 			pos:  position{line: 30, col: 1, offset: 428},
 			expr: &seqExpr{
-				pos: position{line: 30, col: 9, offset: 438},
+				pos: position{line: 30, col: 9, offset: 436},
 				exprs: []interface{}{
 					&ruleRefExpr{
-						pos:  position{line: 30, col: 9, offset: 438},
+						pos:  position{line: 30, col: 9, offset: 436},
 						name: "_",
 					},
 					&ruleRefExpr{
-						pos:  position{line: 30, col: 11, offset: 440},
+						pos:  position{line: 30, col: 11, offset: 438},
 						name: "AB",
 					},
 					&ruleRefExpr{
-						pos:  position{line: 30, col: 14, offset: 443},
+						pos:  position{line: 30, col: 14, offset: 441},
 						name: "_",
 					},
 					&ruleRefExpr{
-						pos:  position{line: 30, col: 16, offset: 445},
+						pos:  position{line: 30, col: 16, offset: 443},
 						name: "EOF",
 					},
 				},
@@ -68,20 +68,20 @@ var g = &grammar{
 		},
 		{
 			name: "AB",
-			pos:  position{line: 32, col: 1, offset: 450},
+			pos:  position{line: 32, col: 1, offset: 448},
 			expr: &choiceExpr{
-				pos: position{line: 32, col: 6, offset: 457},
+				pos: position{line: 32, col: 6, offset: 453},
 				alternatives: []interface{}{
 					&seqExpr{
-						pos: position{line: 32, col: 6, offset: 457},
+						pos: position{line: 32, col: 6, offset: 453},
 						exprs: []interface{}{
 							&labeledExpr{
-								pos:   position{line: 32, col: 6, offset: 457},
+								pos:   position{line: 32, col: 6, offset: 453},
 								label: "abees",
 								expr: &oneOrMoreExpr{
-									pos: position{line: 32, col: 12, offset: 463},
+									pos: position{line: 32, col: 12, offset: 459},
 									expr: &charClassMatcher{
-										pos:        position{line: 32, col: 12, offset: 463},
+										pos:        position{line: 32, col: 12, offset: 459},
 										val:        "[ab]",
 										chars:      []rune{'a', 'b'},
 										ignoreCase: false,
@@ -90,13 +90,13 @@ var g = &grammar{
 								},
 							},
 							&andCodeExpr{
-								pos: position{line: 32, col: 18, offset: 469},
+								pos: position{line: 32, col: 18, offset: 465},
 								run: (*parser).callonAB6,
 							},
 						},
 					},
 					&ruleRefExpr{
-						pos:  position{line: 32, col: 77, offset: 528},
+						pos:  position{line: 32, col: 77, offset: 524},
 						name: "CD",
 					},
 				},
@@ -104,17 +104,17 @@ var g = &grammar{
 		},
 		{
 			name: "CD",
-			pos:  position{line: 33, col: 1, offset: 531},
+			pos:  position{line: 33, col: 1, offset: 527},
 			expr: &seqExpr{
-				pos: position{line: 33, col: 6, offset: 538},
+				pos: position{line: 33, col: 6, offset: 532},
 				exprs: []interface{}{
 					&labeledExpr{
-						pos:   position{line: 33, col: 6, offset: 538},
+						pos:   position{line: 33, col: 6, offset: 532},
 						label: "ceedees",
 						expr: &oneOrMoreExpr{
-							pos: position{line: 33, col: 14, offset: 546},
+							pos: position{line: 33, col: 14, offset: 540},
 							expr: &charClassMatcher{
-								pos:        position{line: 33, col: 14, offset: 546},
+								pos:        position{line: 33, col: 14, offset: 540},
 								val:        "[cd]",
 								chars:      []rune{'c', 'd'},
 								ignoreCase: false,
@@ -123,7 +123,7 @@ var g = &grammar{
 						},
 					},
 					&notCodeExpr{
-						pos: position{line: 33, col: 20, offset: 552},
+						pos: position{line: 33, col: 20, offset: 546},
 						run: (*parser).callonCD5,
 					},
 				},
@@ -131,11 +131,11 @@ var g = &grammar{
 		},
 		{
 			name: "_",
-			pos:  position{line: 35, col: 1, offset: 612},
+			pos:  position{line: 35, col: 1, offset: 606},
 			expr: &zeroOrMoreExpr{
-				pos: position{line: 35, col: 5, offset: 618},
+				pos: position{line: 35, col: 5, offset: 610},
 				expr: &charClassMatcher{
-					pos:        position{line: 35, col: 5, offset: 618},
+					pos:        position{line: 35, col: 5, offset: 610},
 					val:        "[ \\t\\n\\r]",
 					chars:      []rune{' ', '\t', '\n', '\r'},
 					ignoreCase: false,
@@ -145,11 +145,11 @@ var g = &grammar{
 		},
 		{
 			name: "EOF",
-			pos:  position{line: 36, col: 1, offset: 629},
+			pos:  position{line: 36, col: 1, offset: 621},
 			expr: &notExpr{
-				pos: position{line: 36, col: 7, offset: 637},
+				pos: position{line: 36, col: 7, offset: 627},
 				expr: &anyMatcher{
-					line: 36, col: 8, offset: 638,
+					line: 36, col: 8, offset: 628,
 				},
 			},
 		},
@@ -272,12 +272,11 @@ func (p position) String() string {
 type savepoint struct {
 	position
 	rn rune
-	w  int
 }
 
 type current struct {
 	pos  position // start position of the match
-	text []byte   // raw text of the match
+	text []rune   // raw text of the match
 }
 
 // the AST types...
@@ -425,8 +424,8 @@ func newParser(filename string, b []byte, opts ...Option) *parser {
 	p := &parser{
 		filename:        filename,
 		errs:            new(errList),
-		data:            b,
-		pt:              savepoint{position: position{line: 1}},
+		data:            []rune(string(b)),
+		pt:              savepoint{position: position{offset: -1, line: 1}},
 		recover:         true,
 		maxFailPos:      position{col: 1, line: 1},
 		maxFailExpected: make(map[string]struct{}),
@@ -453,7 +452,7 @@ type parser struct {
 	pt       savepoint
 	cur      current
 
-	data []byte
+	data []rune
 	errs *errList
 
 	depth   int
@@ -582,10 +581,13 @@ func (p *parser) failAt(fail bool, pos position, want string) {
 
 // read advances the parser to the next rune.
 func (p *parser) read() {
-	p.pt.offset += p.pt.w
-	rn, n := utf8.DecodeRune(p.data[p.pt.offset:])
+	p.pt.offset++
+	if p.pt.offset >= len(p.data) {
+		p.pt.rn = utf8.RuneError
+		return
+	}
+	rn := p.data[p.pt.offset]
 	p.pt.rn = rn
-	p.pt.w = n
 	p.pt.col++
 	if rn == '\n' {
 		p.pt.line++
@@ -593,9 +595,7 @@ func (p *parser) read() {
 	}
 
 	if rn == utf8.RuneError {
-		if n == 1 {
-			p.addErr(errInvalidEncoding)
-		}
+		p.addErr(errInvalidEncoding)
 	}
 }
 
@@ -611,7 +611,7 @@ func (p *parser) restore(pt savepoint) {
 }
 
 // get the slice of bytes from the savepoint start to the current position.
-func (p *parser) sliceFrom(start savepoint) []byte {
+func (p *parser) sliceFrom(start savepoint) []rune {
 	return p.data[start.position.offset:p.pt.position.offset]
 }
 

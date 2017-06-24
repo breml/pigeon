@@ -29,7 +29,7 @@ func TestCmpStdlib(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(pgot, jgot) {
-			t.Errorf("%s: not equal", file)
+			t.Errorf("%s: not equal\n%#v\n\n%#v\n\n", file, pgot, jgot)
 			continue
 		}
 	}
