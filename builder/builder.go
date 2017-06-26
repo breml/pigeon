@@ -129,6 +129,7 @@ func (b *builder) writeRule(r *ast.Rule) {
 	}
 	pos := r.Pos()
 	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
+	b.writelnf("\texprType: %s,\n", b.writeExprType(r.Expr))
 	b.writef("\texpr: ")
 	b.writeExpr(r.Expr)
 	b.writelnf("},")
@@ -172,6 +173,44 @@ func (b *builder) writeExpr(expr ast.Expression) {
 	}
 }
 
+func (b *builder) writeExprType(expr ast.Expression) string {
+	switch expr := expr.(type) {
+	case *ast.ActionExpr:
+		return "actionExp"
+	case *ast.AndCodeExpr:
+		return "andCodeExp"
+	case *ast.AndExpr:
+		return "andExp"
+	case *ast.AnyMatcher:
+		return "anyMatcherExp"
+	case *ast.CharClassMatcher:
+		return "charClassMatcherExp"
+	case *ast.ChoiceExpr:
+		return "choiceExp"
+	case *ast.LabeledExpr:
+		return "labeledExp"
+	case *ast.LitMatcher:
+		return "litMatcherExp"
+	case *ast.NotCodeExpr:
+		return "notCodeExp"
+	case *ast.NotExpr:
+		return "notExp"
+	case *ast.OneOrMoreExpr:
+		return "oneOrMoreExp"
+	case *ast.RuleRefExpr:
+		return "ruleRefExp"
+	case *ast.SeqExpr:
+		return "seqExp"
+	case *ast.ZeroOrMoreExpr:
+		return "zeroOrMoreExp"
+	case *ast.ZeroOrOneExpr:
+		return "zeroOrOneExp"
+	default:
+		b.err = fmt.Errorf("builder: unknown expression type %T", expr)
+		panic(b.err)
+	}
+}
+
 func (b *builder) writeActionExpr(act *ast.ActionExpr) {
 	if act == nil {
 		b.writelnf("nil,")
@@ -182,6 +221,7 @@ func (b *builder) writeActionExpr(act *ast.ActionExpr) {
 	pos := act.Pos()
 	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
 	b.writelnf("\trun: (*parser).call%s,", b.funcName(act.FuncIx))
+	b.writelnf("\texprType: %s,", b.writeExprType(act.Expr))
 	b.writef("\texpr: ")
 	b.writeExpr(act.Expr)
 	b.writelnf("},")
@@ -208,6 +248,7 @@ func (b *builder) writeAndExpr(and *ast.AndExpr) {
 	b.writelnf("&andExpr{")
 	pos := and.Pos()
 	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
+	b.writelnf("\texprType: %s,", b.writeExprType(and.Expr))
 	b.writef("\texpr: ")
 	b.writeExpr(and.Expr)
 	b.writelnf("},")
@@ -276,6 +317,13 @@ func (b *builder) writeChoiceExpr(ch *ast.ChoiceExpr) {
 	b.writelnf("&choiceExpr{")
 	pos := ch.Pos()
 	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
+
+	altTypes := make([]string, 0, len(ch.Alternatives))
+	for _, alt := range ch.Alternatives {
+		altTypes = append(altTypes, b.writeExprType(alt))
+	}
+	b.writelnf("\talternativesTypes: []int{%s},", strings.Join(altTypes, ","))
+
 	if len(ch.Alternatives) > 0 {
 		b.writelnf("\talternatives: []interface{}{")
 		for _, alt := range ch.Alternatives {
@@ -297,6 +345,7 @@ func (b *builder) writeLabeledExpr(lab *ast.LabeledExpr) {
 	if lab.Label != nil && lab.Label.Val != "" {
 		b.writelnf("\tlabel: %q,", lab.Label.Val)
 	}
+	b.writelnf("\texprType: %s,", b.writeExprType(lab.Expr))
 	b.writef("\texpr: ")
 	b.writeExpr(lab.Expr)
 	b.writelnf("},")
@@ -340,6 +389,7 @@ func (b *builder) writeNotExpr(not *ast.NotExpr) {
 	b.writelnf("&notExpr{")
 	pos := not.Pos()
 	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
+	b.writelnf("\texprType: %s,", b.writeExprType(not.Expr))
 	b.writef("\texpr: ")
 	b.writeExpr(not.Expr)
 	b.writelnf("},")
@@ -353,6 +403,7 @@ func (b *builder) writeOneOrMoreExpr(one *ast.OneOrMoreExpr) {
 	b.writelnf("&oneOrMoreExpr{")
 	pos := one.Pos()
 	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
+	b.writelnf("\texprType: %s,", b.writeExprType(one.Expr))
 	b.writef("\texpr: ")
 	b.writeExpr(one.Expr)
 	b.writelnf("},")
@@ -380,6 +431,13 @@ func (b *builder) writeSeqExpr(seq *ast.SeqExpr) {
 	b.writelnf("&seqExpr{")
 	pos := seq.Pos()
 	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
+
+	exprTypes := make([]string, 0, len(seq.Exprs))
+	for _, expr := range seq.Exprs {
+		exprTypes = append(exprTypes, b.writeExprType(expr))
+	}
+	b.writelnf("\texprsTypes: []int{%s},", strings.Join(exprTypes, ","))
+
 	if len(seq.Exprs) > 0 {
 		b.writelnf("\texprs: []interface{}{")
 		for _, e := range seq.Exprs {
@@ -398,6 +456,7 @@ func (b *builder) writeZeroOrMoreExpr(zero *ast.ZeroOrMoreExpr) {
 	b.writelnf("&zeroOrMoreExpr{")
 	pos := zero.Pos()
 	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
+	b.writelnf("\texprType: %s,", b.writeExprType(zero.Expr))
 	b.writef("\texpr: ")
 	b.writeExpr(zero.Expr)
 	b.writelnf("},")
@@ -411,6 +470,7 @@ func (b *builder) writeZeroOrOneExpr(zero *ast.ZeroOrOneExpr) {
 	b.writelnf("&zeroOrOneExpr{")
 	pos := zero.Pos()
 	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
+	b.writelnf("\texprType: %s,", b.writeExprType(zero.Expr))
 	b.writef("\texpr: ")
 	b.writeExpr(zero.Expr)
 	b.writelnf("},")
