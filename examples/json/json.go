@@ -818,7 +818,7 @@ func ParseReader(filename string, r io.Reader, opts ...Option) (interface{}, err
 // Parse parses the data from b using filename as information in the
 // error messages.
 func Parse(filename string, b []byte, opts ...Option) (interface{}, error) {
-	return newParser(filename, b, opts...).parse(g)
+	return newParser(g, opts...).parse(filename, b)
 }
 
 // position records a position in the text.
@@ -984,17 +984,26 @@ func (p *parserError) Error() string {
 }
 
 // newParser creates a parser with the specified input source and options.
-func newParser(filename string, b []byte, opts ...Option) *parser {
+func newParser(g *grammar, opts ...Option) *parser {
 	p := &parser{
-		filename:        filename,
 		errs:            new(errList),
-		data:            b,
 		pt:              savepoint{position: position{line: 1}},
 		recover:         true,
 		maxFailPos:      position{col: 1, line: 1},
-		maxFailExpected: make(map[string]struct{}),
+		maxFailExpected: make(map[string]struct{}, 20),
 	}
 	p.setOptions(opts)
+
+	if len(g.rules) == 0 {
+		panic(errNoRule)
+	}
+
+	// TODO : not super critical but this could be generated
+	p.buildRulesTable(g)
+
+	p.vstack = make([]map[string]interface{}, 0, 100)
+	p.rstack = make([]*rule, 0, 100)
+
 	return p
 }
 
@@ -1042,6 +1051,19 @@ type parser struct {
 	maxFailPos            position
 	maxFailExpected       map[string]struct{}
 	maxFailInvertExpected bool
+}
+
+func (p *parser) reset() {
+	p.errs = new(errList)
+	p.pt = savepoint{position: position{line: 1}}
+	p.depth = 0
+	p.memo = nil
+	p.vstack = p.vstack[:0]
+	p.rstack = p.rstack[:0]
+	p.exprCnt = 0
+	p.maxFailPos = position{col: 1, line: 1}
+	p.maxFailExpected = make(map[string]struct{})
+	p.maxFailInvertExpected = false
 }
 
 // push a variable set on the vstack.
@@ -1209,14 +1231,9 @@ func (p *parser) buildRulesTable(g *grammar) {
 	}
 }
 
-func (p *parser) parse(g *grammar) (val interface{}, err error) {
-	if len(g.rules) == 0 {
-		p.addErr(errNoRule)
-		return nil, p.errs.err()
-	}
-
-	// TODO : not super critical but this could be generated
-	p.buildRulesTable(g)
+func (p *parser) parse(filename string, b []byte) (val interface{}, err error) {
+	p.filename = filename
+	p.data = b
 
 	if p.recover {
 		// panic can be used in action code to stop parsing immediately

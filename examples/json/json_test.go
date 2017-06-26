@@ -11,17 +11,26 @@ import (
 func TestCmpStdlib(t *testing.T) {
 	files := testJSONFiles(t)
 	for _, file := range files {
-		pgot, err := ParseFile(file)
-		if err != nil {
-			t.Errorf("%s: pigeon.ParseFile: %v", file, err)
-			continue
-		}
-
 		b, err := ioutil.ReadFile(file)
 		if err != nil {
 			t.Errorf("%s: ioutil.ReadAll: %v", file, err)
 			continue
 		}
+
+		p := newParser(g)
+		pgot, err := p.parse(file, b)
+		if err != nil {
+			t.Errorf("%s: pigeon.ParseFile: %v", file, err)
+			continue
+		}
+
+		p.reset()
+		pgotrest, err := p.parse(file, b)
+		if err != nil {
+			t.Errorf("%s: pigeon.ParseFile: %v", file, err)
+			continue
+		}
+
 		var jgot interface{}
 		if err := json.Unmarshal(b, &jgot); err != nil {
 			t.Errorf("%s: json.Unmarshal: %v", file, err)
@@ -30,6 +39,11 @@ func TestCmpStdlib(t *testing.T) {
 
 		if !reflect.DeepEqual(pgot, jgot) {
 			t.Errorf("%s: not equal", file)
+			continue
+		}
+
+		if !reflect.DeepEqual(pgotrest, jgot) {
+			t.Errorf("%s: not equal (after reset)", file)
 			continue
 		}
 	}
@@ -60,6 +74,22 @@ func BenchmarkPigeonJSONNoMemo(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		if _, err := Parse("", d, Memoize(false)); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkPigeonJSONNoMemoReset(b *testing.B) {
+	d, err := ioutil.ReadFile("testdata/github-octokit-repos.json")
+	if err != nil {
+		b.Fatal(err)
+	}
+	p := newParser(g)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		p.reset()
+		if _, err := p.parse("", d); err != nil {
 			b.Fatal(err)
 		}
 	}
