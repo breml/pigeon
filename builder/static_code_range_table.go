@@ -1,6 +1,6 @@
-//go:generate go run ../bootstrap/cmd/static_code_generator/main.go -- $GOFILE generated_$GOFILE rangeTable
+//go:generate go run ../bootstrap/cmd/static_code_generator/main.go -- $GOFILE generated_$GOFILE rangeTable0
 
-// +build static_code
+// + build static_code
 
 package builder
 

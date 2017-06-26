@@ -233,13 +233,25 @@ func (b *builder) writeCharClassMatcher(ch *ast.CharClassMatcher) {
 	pos := ch.Pos()
 	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
 	b.writelnf("\tval: %q,", ch.Val)
+	var chr255 [256]bool
 	if len(ch.Chars) > 0 {
 		b.writef("\tchars: []rune{")
 		for _, rn := range ch.Chars {
 			if ch.IgnoreCase {
 				b.writef("%q,", unicode.ToLower(rn))
+				if rn < 256 {
+					chr255[rn] = true
+					if unicode.IsLower(rn) {
+						chr255[unicode.ToUpper(rn)] = true
+					} else {
+						chr255[unicode.ToLower(rn)] = true
+					}
+				}
 			} else {
 				b.writef("%q,", rn)
+				if rn < 256 {
+					chr255[rn] = true
+				}
 			}
 		}
 		b.writelnf("},")
@@ -253,6 +265,22 @@ func (b *builder) writeCharClassMatcher(ch *ast.CharClassMatcher) {
 				b.writef("%q,", rn)
 			}
 		}
+		for i := 0; i < len(ch.Ranges); i += 2 {
+			if ch.Ranges[i] < 256 {
+				for j := ch.Ranges[i]; j < 256 && j <= ch.Ranges[i+1]; j++ {
+					if ch.IgnoreCase {
+						chr255[j] = true
+						if unicode.IsLower(j) {
+							chr255[unicode.ToUpper(j)] = true
+						} else {
+							chr255[unicode.ToLower(j)] = true
+						}
+					} else {
+						chr255[j] = true
+					}
+				}
+			}
+		}
 		b.writelnf("},")
 	}
 	if len(ch.UnicodeClasses) > 0 {
@@ -260,9 +288,17 @@ func (b *builder) writeCharClassMatcher(ch *ast.CharClassMatcher) {
 		b.writef("\tclasses: []*unicode.RangeTable{")
 		for _, cl := range ch.UnicodeClasses {
 			b.writef("rangeTable(%q),", cl)
+			rt := rangeTable(cl)
+			for r := rune(0); r < 256; r++ {
+				if unicode.Is(rt, r) {
+					chr255[r] = true
+				}
+			}
 		}
+		// TODO: Add chr255 handling
 		b.writelnf("},")
 	}
+	b.writelnf("\tchars255: %#v,", chr255)
 	b.writelnf("\tignoreCase: %t,", ch.IgnoreCase)
 	b.writelnf("\tinverted: %t,", ch.Inverted)
 	b.writelnf("},")
@@ -560,7 +596,7 @@ func (b *builder) writeFunc(funcIx int, code *ast.CodeBlock, callTpl, funcTpl st
 func (b *builder) writeStaticCode() {
 	b.writeln(staticCode)
 	if b.rangeTable {
-		b.writeln(rangeTable)
+		b.writeln(rangeTable0)
 	}
 }
 
