@@ -100,7 +100,8 @@ var g = &grammar{
 												pos:        position{line: 20, col: 19, offset: 250},
 												val:        "[^abd]",
 												chars:      []rune{'a', 'b', 'd'},
-												chars255:   [256]bool{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
+												mask64:     0x0,
+												mask128:    0x1600000000,
 												ignoreCase: false,
 												inverted:   true,
 											},
@@ -150,7 +151,8 @@ var g = &grammar{
 									pos:        position{line: 22, col: 13, offset: 348},
 									val:        "[efg]",
 									chars:      []rune{'e', 'f', 'g'},
-									chars255:   [256]bool{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
+									mask64:     0x0,
+									mask128:    0xe000000000,
 									ignoreCase: false,
 									inverted:   false,
 								},
@@ -419,7 +421,8 @@ type litMatcher struct {
 type charClassMatcher struct {
 	pos        position
 	val        string
-	chars255   [256]bool
+	mask64     int64
+	mask128    int64
 	chars      []rune
 	ranges     []rune
 	classes    []*unicode.RangeTable
@@ -936,8 +939,8 @@ func (p *parser) parseCharClassMatcher(chr *charClassMatcher) (interface{}, bool
 	cur := p.pt.rn
 	start := p.pt
 
-	if cur < 256 {
-		if chr.chars255[cur] != chr.inverted {
+	if cur < 128 {
+		if cur >= 64 && (1<<uint(cur-64)&chr.mask128 != 0) != chr.inverted || cur < 64 && (1<<uint(cur)&chr.mask64 != 0) != chr.inverted {
 			p.read()
 			p.failAt(true, start.position, chr.val)
 			return p.sliceFrom(start), true

@@ -224,6 +224,22 @@ func (b *builder) writeAnyMatcher(any *ast.AnyMatcher) {
 	b.writelnf("},")
 }
 
+func updateMask(mask64, mask128 *int64, rn rune, ignoreCase bool) {
+	if rn < 64 {
+		*mask64 |= 1 << uint(rn)
+	}
+	if rn >= 64 && rn < 128 {
+		*mask128 |= 1 << uint(rn-64)
+		if ignoreCase {
+			if unicode.IsLower(rn) {
+				*mask128 |= 1 << uint(unicode.ToUpper(rn)-64)
+			} else {
+				*mask128 |= 1 << uint(unicode.ToLower(rn)-64)
+			}
+		}
+	}
+}
+
 func (b *builder) writeCharClassMatcher(ch *ast.CharClassMatcher) {
 	if ch == nil {
 		b.writelnf("nil,")
@@ -233,26 +249,16 @@ func (b *builder) writeCharClassMatcher(ch *ast.CharClassMatcher) {
 	pos := ch.Pos()
 	b.writelnf("\tpos: position{line: %d, col: %d, offset: %d},", pos.Line, pos.Col, pos.Off)
 	b.writelnf("\tval: %q,", ch.Val)
-	var chr255 [256]bool
+	var mask64, mask128 int64
 	if len(ch.Chars) > 0 {
 		b.writef("\tchars: []rune{")
 		for _, rn := range ch.Chars {
 			if ch.IgnoreCase {
 				b.writef("%q,", unicode.ToLower(rn))
-				if rn < 256 {
-					chr255[rn] = true
-					if unicode.IsLower(rn) {
-						chr255[unicode.ToUpper(rn)] = true
-					} else {
-						chr255[unicode.ToLower(rn)] = true
-					}
-				}
 			} else {
 				b.writef("%q,", rn)
-				if rn < 256 {
-					chr255[rn] = true
-				}
 			}
+			updateMask(&mask64, &mask128, rn, ch.IgnoreCase)
 		}
 		b.writelnf("},")
 	}
@@ -266,18 +272,9 @@ func (b *builder) writeCharClassMatcher(ch *ast.CharClassMatcher) {
 			}
 		}
 		for i := 0; i < len(ch.Ranges); i += 2 {
-			if ch.Ranges[i] < 256 {
-				for j := ch.Ranges[i]; j < 256 && j <= ch.Ranges[i+1]; j++ {
-					if ch.IgnoreCase {
-						chr255[j] = true
-						if unicode.IsLower(j) {
-							chr255[unicode.ToUpper(j)] = true
-						} else {
-							chr255[unicode.ToLower(j)] = true
-						}
-					} else {
-						chr255[j] = true
-					}
+			if ch.Ranges[i] < 128 {
+				for j := ch.Ranges[i]; j < 128 && j <= ch.Ranges[i+1]; j++ {
+					updateMask(&mask64, &mask128, j, ch.IgnoreCase)
 				}
 			}
 		}
@@ -289,16 +286,17 @@ func (b *builder) writeCharClassMatcher(ch *ast.CharClassMatcher) {
 		for _, cl := range ch.UnicodeClasses {
 			b.writef("rangeTable(%q),", cl)
 			rt := rangeTable(cl)
-			for r := rune(0); r < 256; r++ {
+			for r := rune(0); r < 128; r++ {
 				if unicode.Is(rt, r) {
-					chr255[r] = true
+					updateMask(&mask64, &mask128, r, false)
 				}
 			}
 		}
 		// TODO: Add chr255 handling
 		b.writelnf("},")
 	}
-	b.writelnf("\tchars255: %#v,", chr255)
+	b.writelnf("\tmask64: 0x%x,", mask64)
+	b.writelnf("\tmask128: 0x%x,", mask128)
 	b.writelnf("\tignoreCase: %t,", ch.IgnoreCase)
 	b.writelnf("\tinverted: %t,", ch.Inverted)
 	b.writelnf("},")
