@@ -172,6 +172,9 @@ $(TEST_DIR)/issue_70b/issue_70b.go: $(TEST_DIR)/issue_70b/issue_70b.peg $(BINDIR
 $(TEST_DIR)/issue_80/issue_80.go: $(TEST_DIR)/issue_80/issue_80.peg $(BINDIR)/pigeon
 	$(BINDIR)/pigeon -nolint $< > $@
 
+$(TEST_DIR)/issue_96/issue_96.go: $(TEST_DIR)/issue_96/issue_96.peg $(BINDIR)/pigeon
+	$(BINDIR)/pigeon -nolint $< > $@
+
 lint:
 	golint ./...
 	go vet ./...

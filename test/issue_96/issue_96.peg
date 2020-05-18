@@ -1,0 +1,10 @@
+{
+package pegmatch
+
+var ContentString string = ""
+}
+Search <- .+ {
+    return strings.Contains(ContentString, string(c.text)), nil
+}
+
+EOF <- !.
